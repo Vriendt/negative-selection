@@ -1,8 +1,16 @@
-
 from subprocess import Popen, PIPE, STDOUT
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Iterable
 from pathlib import Path
 from dataclasses import dataclass, field
+from abc import ABC, abstractmethod
+from enum import Enum
+
+class ChunkRemainderPolicy(Enum):
+    KEEP = 0
+    DROP = 1
+    PAD = 2
+
+PADDING_CHAR = '_'
 
 @dataclass
 class Config:
@@ -11,6 +19,7 @@ class Config:
     rRange: Tuple[int, int]
     r: int = field(init=False)
     inputPath: Path
+    chunkRemainderPolicy: ChunkRemainderPolicy = ChunkRemainderPolicy.KEEP
 
     def __post_init__(self):
         self.setN(self.nRange[0])
@@ -36,6 +45,37 @@ class Config:
             self.setR(r)
             yield r
 
+class LineModifier(ABC):
+    @staticmethod
+    @abstractmethod
+    def apply(line: str, conf: Config) -> Iterable[str]:
+        pass
+
+class IdentityModifier(LineModifier):
+    @staticmethod
+    def apply(line: str, conf: Config) -> Iterable[str]:
+        yield line
+    
+class ChunkModifier(LineModifier):
+    @staticmethod
+    def apply(line: str, conf: Config) -> Iterable[str]:
+        chunks = [line[i:i+conf.n] for i in range(0, len(line), conf.n)]
+        remainder = len(line) % conf.n
+
+        match(conf.chunkRemainderPolicy):
+            case ChunkRemainderPolicy.KEEP:
+                return chunks
+            case ChunkRemainderPolicy.DROP:
+                if remainder > 0:
+                    return chunks[:-1]
+                return chunks
+            case ChunkRemainderPolicy.PAD:
+                if remainder > 0:
+                    chunks[-1] = chunks[-1] + PADDING_CHAR * remainder
+                return chunks
+
+        return chunks
+
 def openProcess(conf: Config) -> Popen[str]:
     return Popen(
         ['java', '-jar', 'negsel2.jar', '-self', str(conf.inputPath), '-n', str(conf.n), '-r', str(conf.r), '-c', '-l'], 
@@ -43,10 +83,15 @@ def openProcess(conf: Config) -> Popen[str]:
         stderr=STDOUT, 
         stdin=PIPE, 
         text=True)
+    
+def parseFileToList(path: Path, conf: Config, modifier: LineModifier) -> List[str]:
+    result = []
 
-def parseFileToList(path: Path) -> List[str]:
     with open(path) as f:
-        return [s.strip() for s in f.readlines()]
+        for line in f.read().splitlines():
+            result.extend(modifier.apply(line, conf))
+
+    return result
     
 def runFileOnProcess(process: Popen[str], strings: List[str], language: str) -> Dict[str, Tuple[str, float]]:
     results = {}
@@ -60,9 +105,9 @@ def runFileOnProcess(process: Popen[str], strings: List[str], language: str) -> 
 
     return results
 
-def run(conf: Config, inputPaths: List[Path]):
+def run(conf: Config, inputPaths: List[Path], lineModifier: LineModifier):
     result = {}
-    inputs = [(parseFileToList(p), p.stem) for p in inputPaths]
+    inputs = [(parseFileToList(p, conf, lineModifier), p.stem) for p in inputPaths]
 
     def sort(d):
         return dict(sorted(d.items(), key=lambda item: item[1][1]))
@@ -82,9 +127,9 @@ def run(conf: Config, inputPaths: List[Path]):
 def run4():
     conf = Config((10,10), (4,4), Path('./english.train'))
     files = [Path('./english.test'), Path('./tagalog.test')]
-    return run(conf, files)
+    return run(conf, files, IdentityModifier())
 
 def runAssignment1():
     conf = Config((10,10), (1,9), Path('./english.train'))
     files = [Path('./english.test'), Path('./tagalog.test')]
-    return run(conf, files)
+    return run(conf, files, IdentityModifier())
