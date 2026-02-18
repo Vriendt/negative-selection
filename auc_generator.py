@@ -1,4 +1,4 @@
-from test import run4
+from run_experiment import run4
 import numpy as np
 from sklearn import metrics
 import matplotlib.pyplot as plt
@@ -10,7 +10,7 @@ print(metrics.auc(fpr, tpr))
 
 
 
-dict = run4()[4]
+dict = run4()[(10,4)]
 print(dict)
 
 print("\n\n\n")

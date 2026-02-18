@@ -2,10 +2,43 @@
 from subprocess import Popen, PIPE, STDOUT
 from typing import List, Dict, Tuple
 from pathlib import Path
+from dataclasses import dataclass, field
 
-def openProcess(r: int) -> Popen[str]:
+@dataclass
+class Config:
+    nRange: Tuple[int, int]
+    n: int = field(init=False)
+    rRange: Tuple[int, int]
+    r: int = field(init=False)
+    inputPath: Path
+
+    def __post_init__(self):
+        self.setN(self.nRange[0])
+        self.setR(self.rRange[0])
+
+    def setN(self, n: int) -> None:
+        if not (n >= self.nRange[0] and n <= self.nRange[1]):
+            raise ValueError(f"{n} must be between {self.nRange} inclusive")
+        self.n = n
+
+    def setR(self, r: int) -> None:
+        if not (r >= self.rRange[0] and r <= self.rRange[1]):
+            raise ValueError(f"{r} must be between {self.rRange} inclusive")
+        self.r = r
+
+    def iterN(self):
+        for n in range(self.nRange[0], self.nRange[1] + 1):
+            self.setN(n)
+            yield n
+
+    def iterR(self):
+        for r in range(self.rRange[0], self.rRange[1] + 1):
+            self.setR(r)
+            yield r
+
+def openProcess(conf: Config) -> Popen[str]:
     return Popen(
-        ['java', '-jar', 'negsel2.jar', '-self', 'english.train', '-n', '10', '-r', str(r), '-c', '-l'], 
+        ['java', '-jar', 'negsel2.jar', '-self', str(conf.inputPath), '-n', str(conf.n), '-r', str(conf.r), '-c', '-l'], 
         stdout=PIPE, 
         stderr=STDOUT, 
         stdin=PIPE, 
@@ -31,26 +64,27 @@ def mergeAndSortAsc(dictA: Dict[str, Tuple[str, float]], dictB: Dict[str, Tuple[
     temp = dictA | dictB
     return dict(sorted(temp.items(), key=lambda item: item[1][1]))
 
-def run(rMin: int, rMax: int, inputPaths: List[Path]):
+def run(conf: Config, inputPaths: List[Path]):
     result = {}
     inputs = [(parseFileToList(p), p.stem) for p in inputPaths]
 
-    for i in range(rMin, rMax + 1):
-        p = openProcess(i)
-        temp = {}
-        for (input, language) in inputs:
-           temp = mergeAndSortAsc(temp, runFileOnProcess(p, input, language))
+    for n in conf.iterN():
+        for r in conf.iterR():
+            p = openProcess(conf)
+            temp = {}
+            for (input, language) in inputs:
+                temp = mergeAndSortAsc(temp, runFileOnProcess(p, input, language))
         
-        result[i] = temp
+            result[(n, r)] = temp
     
     return result
 
 def run4():
+    conf = Config((10,10), (4,4), Path('./english.train'))
     files = [Path('./english.test'), Path('./tagalog.test')]
-    return run(4, 4, files)
+    return run(conf, files)
 
 def runAssignment1():
+    conf = Config((10,10), (1,9), Path('./english.train'))
     files = [Path('./english.test'), Path('./tagalog.test')]
-    return run(1, 9, files)
-
-print(runAssignment1())
+    return run(conf, files)
