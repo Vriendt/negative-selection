@@ -60,22 +60,22 @@ def runFileOnProcess(process: Popen[str], strings: List[str], language: str) -> 
 
     return results
 
-def mergeAndSortAsc(dictA: Dict[str, Tuple[str, float]], dictB: Dict[str, Tuple[str, float]]) -> Dict[str, Tuple[str, float]]:
-    temp = dictA | dictB
-    return dict(sorted(temp.items(), key=lambda item: item[1][1]))
-
 def run(conf: Config, inputPaths: List[Path]):
     result = {}
     inputs = [(parseFileToList(p), p.stem) for p in inputPaths]
 
+    def sort(d):
+        return dict(sorted(d.items(), key=lambda item: item[1][1]))
+
     for n in conf.iterN():
         for r in conf.iterR():
             p = openProcess(conf)
-            temp = {}
+            temp  = {}
             for (input, language) in inputs:
-                temp = mergeAndSortAsc(temp, runFileOnProcess(p, input, language))
+                temp |=  runFileOnProcess(p, input, language)
         
-            result[(n, r)] = temp
+            p.kill()
+            result[(n, r)] = sort(temp)
     
     return result
 
