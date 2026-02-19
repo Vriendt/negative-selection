@@ -1,13 +1,10 @@
-from run_experiment import Config, IdentityModifier, parseFileToList
+from run_experiment import parseFileToList
 from pathlib import Path
 from typing import List, Tuple, Dict
 
 def getInputWithLabel(strFile: Path, labelFile: Path) -> List[Tuple[str, str]]:
-    labelConf = Config((1,1), (0,0), labelFile)
-    labels = parseFileToList(labelConf.inputPath, labelConf, IdentityModifier())
-
-    strConf = Config((0,0), (0,0), strFile)
-    strings = parseFileToList(strConf.inputPath, strConf, IdentityModifier())
+    labels = parseFileToList(labelFile)
+    strings = parseFileToList(strFile)
 
     return list(zip(strings, labels))
 

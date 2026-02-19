@@ -84,30 +84,35 @@ def openProcess(conf: Config) -> Popen[str]:
         stdin=PIPE, 
         text=True)
     
-def parseFileToList(path: Path, conf: Config, modifier: LineModifier) -> List[str]:
-    result = []
-
+def parseFileToList(path: Path) -> List[str]:
     with open(path) as f:
-        for line in f.read().splitlines():
-            result.extend(modifier.apply(line, conf))
-
-    return result
+        return f.read().splitlines()
     
-def runFileOnProcess(process: Popen[str], strings: List[str], language: str) -> Dict[str, Tuple[str, float]]:
+def runFileOnProcess(process: Popen[str], strings: List[str], language: str, conf: Config, modifier: LineModifier) -> Dict[str, Tuple[str, float]]:
     results = {}
 
-    for string in strings:
-        process.stdin.write(string + '\n')
-        process.stdin.flush()
+    def runLine(line: str) -> float:
+        sum = 0
+        count = 0
+        for chunk in modifier.apply(line, conf):
+            process.stdin.write(chunk + '\n')
+            process.stdin.flush()
 
-        result = process.stdout.readline().strip()
-        results[string] = (language, float(result))
+            sum += float(process.stdout.readline().strip())
+            count += 1
+
+        if count > 0:
+            return (sum / count)
+        return 0.0
+
+    for string in strings:
+        results[string] = (language, runLine(string))
 
     return results
 
 def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, str]], lineModifier: LineModifier):
     result = {}
-    inputs = [(parseFileToList(p, conf, lineModifier), l) for (p,l) in inputPathsWithLabel]
+    inputs = [(parseFileToList(p), l) for (p, l) in inputPathsWithLabel]
 
     def sort(d):
         return dict(sorted(d.items(), key=lambda item: item[1][1]))
@@ -117,7 +122,7 @@ def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, str]], lineModifier:
             p = openProcess(conf)
             temp  = {}
             for (input, language) in inputs:
-                temp |=  runFileOnProcess(p, input, language)
+                temp |=  runFileOnProcess(p, input, language, conf, lineModifier)
         
             p.kill()
             result[(n, r)] = sort(temp)
