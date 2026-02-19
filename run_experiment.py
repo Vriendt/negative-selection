@@ -71,7 +71,7 @@ class ChunkModifier(LineModifier):
                 return chunks
             case ChunkRemainderPolicy.PAD:
                 if remainder > 0:
-                    chunks[-1] = chunks[-1] + PADDING_CHAR * remainder
+                    chunks[-1] = chunks[-1] + PADDING_CHAR * (conf.n - remainder)
                 return chunks
 
         return chunks
