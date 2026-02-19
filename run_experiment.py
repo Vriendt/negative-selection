@@ -105,9 +105,9 @@ def runFileOnProcess(process: Popen[str], strings: List[str], language: str) -> 
 
     return results
 
-def run(conf: Config, inputPaths: List[Path], lineModifier: LineModifier):
+def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, str]], lineModifier: LineModifier):
     result = {}
-    inputs = [(parseFileToList(p, conf, lineModifier), p.stem) for p in inputPaths]
+    inputs = [(parseFileToList(p, conf, lineModifier), l) for (p,l) in inputPathsWithLabel]
 
     def sort(d):
         return dict(sorted(d.items(), key=lambda item: item[1][1]))
@@ -126,10 +126,10 @@ def run(conf: Config, inputPaths: List[Path], lineModifier: LineModifier):
 
 def run4():
     conf = Config((10,10), (4,4), Path('./english.train'))
-    files = [Path('./english.test'), Path('./tagalog.test')]
+    files = [(Path('./english.test'), 'english'), (Path('./tagalog.test'), 'tagalog')]
     return run(conf, files, IdentityModifier())
 
 def runAssignment1():
     conf = Config((10,10), (1,9), Path('./english.train'))
-    files = [Path('./english.test'), Path('./tagalog.test')]
+    files = [(Path('./english.test'), 'english'), (Path('./tagalog.test'), 'tagalog')]
     return run(conf, files, IdentityModifier())
