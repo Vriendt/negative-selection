@@ -99,7 +99,6 @@ def prepareTrainInChunks(conf: Config, outputFile: Path) -> Path:
     conf.n is the chunk size
     conf.chunkRemainderPolicy decides what to do with chunks of size < conf.n
     '''
-    print(conf)
     chunks = []
     for line in parseFileToList(conf.inputPath):
         chunks.extend(ChunkModifier().apply(line, conf))
@@ -115,7 +114,6 @@ def runFileOnProcess(process: Popen[str], strings: List[str], language: str, con
         for chunk in modifier.apply(line, conf):
             process.stdin.write(chunk + '\n')
             process.stdin.flush()
-            print(chunk)
             sum += float(process.stdout.readline().strip())
             count += 1
 
