@@ -86,7 +86,8 @@ def openProcess(conf: Config) -> Popen[str]:
         stdout=PIPE, 
         stderr=STDOUT, 
         stdin=PIPE, 
-        text=True)
+        text=True,
+        bufsize=1)
     
 def parseFileToList(path: Path) -> List[str]:
     with open(path) as f:
@@ -98,6 +99,7 @@ def prepareTrainInChunks(conf: Config, outputFile: Path) -> Path:
     conf.n is the chunk size
     conf.chunkRemainderPolicy decides what to do with chunks of size < conf.n
     '''
+    print(conf)
     chunks = []
     for line in parseFileToList(conf.inputPath):
         chunks.extend(ChunkModifier().apply(line, conf))
@@ -113,7 +115,7 @@ def runFileOnProcess(process: Popen[str], strings: List[str], language: str, con
         for chunk in modifier.apply(line, conf):
             process.stdin.write(chunk + '\n')
             process.stdin.flush()
-
+            print(chunk)
             sum += float(process.stdout.readline().strip())
             count += 1
 
@@ -129,15 +131,15 @@ def runFileOnProcess(process: Popen[str], strings: List[str], language: str, con
 def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, str]], lineModifier: LineModifier, trainPrepareCRMP: ChunkRemainderPolicy):
     result = {}
     inputs = [(parseFileToList(p), l) for (p, l) in inputPathsWithLabel]
-    tempConf = conf.copy()
-    tempConf.chunkRemainderPolicy = trainPrepareCRMP
 
     def sort(d):
         return dict(sorted(d.items(), key=lambda item: item[1][1]))
 
     for n in conf.iterN():
         for r in conf.iterR():
-            tempConf.nRange = (n, n)
+            tempConf = conf.copy()
+            tempConf.chunkRemainderPolicy = trainPrepareCRMP
+            tempConf.setN(n)
             tempConf.inputPath = prepareTrainInChunks(tempConf, PREPARED_TRAIN_PATH)
 
             p = openProcess(tempConf)
@@ -147,8 +149,8 @@ def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, str]], lineModifier:
         
             p.kill()
             result[(n, r)] = sort(temp)
-    
-    PREPARED_TRAIN_PATH.unlink(missing_ok=True)
+
+            PREPARED_TRAIN_PATH.unlink(missing_ok=True)
 
     return result
 
@@ -169,3 +171,8 @@ def runAssignment1():
     conf = Config((10,10), (1,9), Path('./english.train'))
     files = [(Path('./english.test'), 'english'), (Path('./tagalog.test'), 'tagalog')]
     return run(conf, files, IdentityModifier(), ChunkRemainderPolicy.PAD)
+
+def part2Example():
+    conf = Config((10,12), (4,4), Path('./syscalls/snd-unm/snd-unm.train'), ChunkRemainderPolicy.PAD)
+    files = [(Path('./syscalls/snd-unm/prepared/snd-unm.1.0.test'), '0'), (Path('./syscalls/snd-unm/prepared/snd-unm.1.1.test'), '1')]
+    return run(conf, files, ChunkModifier(), ChunkRemainderPolicy.PAD)
