@@ -1,4 +1,4 @@
-from run_experiment import parseFileToList, Config, ChunkModifier, ChunkRemainderPolicy
+from run_experiment import parseFileToList, writeToFile
 from pathlib import Path
 from typing import List, Tuple, Dict
 
@@ -26,14 +26,6 @@ def seperateByLabel(tuples: List[Tuple[str, str]]) -> Dict[str, List[str]]:
 
     return {labelA: stringsA, labelB: stringsB}
 
-def writeToFile(strings: List[str], outputFile: Path):
-    outputFile.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(outputFile, mode='w') as f:
-        f.write('\n'.join(strings))
-
-    return outputFile
-
 def prepareAllFiles():
     def doBatch(name: str, n: int):
         d = seperateByLabel(
@@ -49,17 +41,5 @@ def prepareAllFiles():
 
     for i in range(1, 4):
         doBatch('snd-cert', i)
-
-def prepareTrainInChunks(conf: Config, outputFile: Path) -> Path:
-    '''
-    expects conf.inputPath the path of the train file.
-    conf.n is the chunk size
-    conf.chunkRemainderPolicy decides what to do with chunks of size < conf.n
-    '''
-    chunks = []
-    for line in parseFileToList(conf.inputPath):
-        chunks.extend(ChunkModifier().apply(line, conf))
-
-    return writeToFile(chunks, outputFile)
 
 #prepareAllFiles()
