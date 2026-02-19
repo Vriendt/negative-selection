@@ -1,4 +1,4 @@
-from run_experiment import parseFileToList
+from run_experiment import parseFileToList, Config, ChunkModifier, ChunkRemainderPolicy
 from pathlib import Path
 from typing import List, Tuple, Dict
 
@@ -49,5 +49,17 @@ def prepareAllFiles():
 
     for i in range(1, 4):
         doBatch('snd-cert', i)
+
+def prepareTrainInChunks(conf: Config, outputFile: Path) -> Path:
+    '''
+    expects conf.inputPath the path of the train file.
+    conf.n is the chunk size
+    conf.chunkRemainderPolicy decides what to do with chunks of size < conf.n
+    '''
+    chunks = []
+    for line in parseFileToList(conf.inputPath):
+        chunks.extend(ChunkModifier().apply(line, conf))
+
+    return writeToFile(chunks, outputFile)
 
 #prepareAllFiles()
