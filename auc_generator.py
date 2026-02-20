@@ -1,9 +1,10 @@
-from run_experiment import runAssignment1, run4
+from run_experiment import run, ChunkModifier, ChunkRemainderPolicy, Config
 import numpy as np
 from sklearn import metrics
 from imblearn import metrics as imbmetrics
 import matplotlib.pyplot as plt
 from typing import Dict, Tuple, Any
+from pathlib import Path
 
 CORRECT_LABEL = 0
 INCORRECT_LABEL = 1
@@ -50,16 +51,24 @@ def calc(dict, n, r):
     score = metrics.roc_auc_score(*get_arrays_for_auc_roc(dict))
     print(n, r, score)
 
-    plt.title(f"Line Graph AUC={score}, n={n}, r={r}")
-    plt.xlabel("1-specificity")
-    plt.ylabel("sensitivity")
+    # plt.title(f"Line Graph AUC={score}, n={n}, r={r}")
+    # plt.xlabel("1-specificity")
+    # plt.ylabel("sensitivity")
 
     sensitivity.append(0.0)
     specificity.append(0.0)
-    plt.plot(specificity, sensitivity, color="red")
-    plt.show()
+    # plt.plot(specificity, sensitivity, color="red")
+    # plt.show()
 
-result = runAssignment1()
-for (n, r), v in result.items():
+# result = runAssignment1()
+
+
+def testRun():
+    conf = Config((9,12), (1,9), Path('./syscalls/snd-unm/snd-unm.train'), ChunkRemainderPolicy.PAD)
+    files = [(Path('./syscalls/snd-unm/prepared/snd-unm.1.0.test'), 0), (Path('./syscalls/snd-unm/prepared/snd-unm.1.1.test'), 1)]
+    return run(conf, files, ChunkModifier(), ChunkRemainderPolicy.PAD)
+
+r = testRun()
+
+for (n, r), v in r.items():
     calc(v, n, r)
-

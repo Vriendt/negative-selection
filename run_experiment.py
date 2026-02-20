@@ -140,6 +140,7 @@ def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, Any]], lineModifier:
         tempConf.setN(n)
         tempConf.inputPath = prepareTrainInChunks(tempConf, PREPARED_TRAIN_PATH)
         for r in conf.iterR():
+            print('running', n, r, sep=' ')
             tempConf.setR(r)
             p = openProcess(tempConf)
             temp  = {}
