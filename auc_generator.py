@@ -1,33 +1,65 @@
-from run_experiment import run4
+from run_experiment import runAssignment1, run4
 import numpy as np
 from sklearn import metrics
+from imblearn import metrics as imbmetrics
 import matplotlib.pyplot as plt
-print("You are in bitch")
-y_true = np.array([1, 1, 2, 2])
-y_score = np.array([0.1, 0.4, 0.35, 0.8])
-fpr, tpr, thresholds = metrics.roc_curve(y_true, y_score, pos_label=2)
-print(metrics.auc(fpr, tpr))
+from typing import Dict, Tuple, Any
+
+CORRECT_LABEL = 0
+INCORRECT_LABEL = 1
+
+def get_arrays(dict: Dict[str, Tuple[Any, float]], threshold: float):
+        y_true = []
+        y_pred = []
+        for (label, value) in dict.values():
+            if value <= threshold:
+                y_pred.append(CORRECT_LABEL)
+            else:
+                y_pred.append(INCORRECT_LABEL)
+            y_true.append(label)
+
+        return (y_true, y_pred)
+
+def get_arrays_for_auc_roc(dict: Dict[str, Tuple[Any, float]]):
+    y_true = []
+    y_pred = []
+    for (label, value) in dict.values():
+        y_pred.append(value)
+        y_true.append(label)
+
+    return (y_true, y_pred)
+
+def calc(dict, n, r):
+    sensitivity = [1.0]
+    specificity = [1.0]
+
+    previous = None
+    for (_, item) in enumerate(dict.items()):
+        score = item[1][1]
+
+        if previous != score:
+            y_true, y_pred = get_arrays(dict, score)
+            sens_score = imbmetrics.sensitivity_score(y_true, y_pred, average='binary')
+            spec_score = 1 - imbmetrics.specificity_score(y_true, y_pred, average='binary')
+            
+            sensitivity.append(sens_score)
+            specificity.append(spec_score)
 
 
+        previous = score
+    score = metrics.roc_auc_score(*get_arrays_for_auc_roc(dict))
+    print(n, r, score)
 
-dict = run4()[(10,4)]
-print(dict)
+    plt.title(f"Line Graph AUC={score}, n={n}, r={r}")
+    plt.xlabel("1-specificity")
+    plt.ylabel("sensitivity")
 
-print("\n\n\n")
+    sensitivity.append(0.0)
+    specificity.append(0.0)
+    plt.plot(specificity, sensitivity, color="red")
+    plt.show()
 
-previous = None
-
-sensitivity = np.array([])
-specificity_inv = np.array([])
-
-for (i, item) in enumerate(dict.items()):
-    score = item[1][1]
-
-    if previous != score:
-        print(score)
-
-    previous = score
-
-#string: (language, float)
-
+result = runAssignment1()
+for (n, r), v in result.items():
+    calc(v, n, r)
 

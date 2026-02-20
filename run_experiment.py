@@ -1,9 +1,10 @@
 from subprocess import Popen, PIPE, STDOUT
-from typing import List, Dict, Tuple, Iterable
+from typing import List, Dict, Tuple, Iterable, Any
 from pathlib import Path
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from enum import Enum
+from os import remove
 
 class ChunkRemainderPolicy(Enum):
     KEEP = 0
@@ -126,7 +127,7 @@ def runFileOnProcess(process: Popen[str], strings: List[str], language: str, con
 
     return results
 
-def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, str]], lineModifier: LineModifier, trainPrepareCRMP: ChunkRemainderPolicy):
+def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, Any]], lineModifier: LineModifier, trainPrepareCRMP: ChunkRemainderPolicy):
     result = {}
     inputs = [(parseFileToList(p), l) for (p, l) in inputPathsWithLabel]
 
@@ -134,12 +135,12 @@ def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, str]], lineModifier:
         return dict(sorted(d.items(), key=lambda item: item[1][1]))
 
     for n in conf.iterN():
+        tempConf = conf.copy()
+        tempConf.chunkRemainderPolicy = trainPrepareCRMP
+        tempConf.setN(n)
+        tempConf.inputPath = prepareTrainInChunks(tempConf, PREPARED_TRAIN_PATH)
         for r in conf.iterR():
-            tempConf = conf.copy()
-            tempConf.chunkRemainderPolicy = trainPrepareCRMP
-            tempConf.setN(n)
-            tempConf.inputPath = prepareTrainInChunks(tempConf, PREPARED_TRAIN_PATH)
-
+            tempConf.setR(r)
             p = openProcess(tempConf)
             temp  = {}
             for (input, language) in inputs:
@@ -148,7 +149,8 @@ def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, str]], lineModifier:
             p.kill()
             result[(n, r)] = sort(temp)
 
-            PREPARED_TRAIN_PATH.unlink(missing_ok=True)
+            # PREPARED_TRAIN_PATH.unlink(missing_ok=True)
+        # remove(PREPARED_TRAIN_PATH)
 
     return result
 
@@ -162,15 +164,15 @@ def writeToFile(strings: List[str], outputFile: Path):
 
 def run4():
     conf = Config((10,10), (4,4), Path('./english.train'))
-    files = [(Path('./english.test'), 'english'), (Path('./tagalog.test'), 'tagalog')]
+    files = [(Path('./english.test'), 0), (Path('./tagalog.test'), 1)]
     return run(conf, files, ChunkModifier(), ChunkRemainderPolicy.PAD)
 
 def runAssignment1():
     conf = Config((10,10), (1,9), Path('./english.train'))
-    files = [(Path('./english.test'), 'english'), (Path('./tagalog.test'), 'tagalog')]
-    return run(conf, files, IdentityModifier(), ChunkRemainderPolicy.PAD)
+    files = [(Path('./english.test'), 0), (Path('./tagalog.test'), 1)]
+    return run(conf, files, ChunkModifier(), ChunkRemainderPolicy.PAD)
 
 def part2Example():
     conf = Config((10,12), (4,4), Path('./syscalls/snd-unm/snd-unm.train'), ChunkRemainderPolicy.PAD)
-    files = [(Path('./syscalls/snd-unm/prepared/snd-unm.1.0.test'), '0'), (Path('./syscalls/snd-unm/prepared/snd-unm.1.1.test'), '1')]
+    files = [(Path('./syscalls/snd-unm/prepared/snd-unm.1.0.test'), 0), (Path('./syscalls/snd-unm/prepared/snd-unm.1.1.test'), 1)]
     return run(conf, files, ChunkModifier(), ChunkRemainderPolicy.PAD)
