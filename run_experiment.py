@@ -4,15 +4,14 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from enum import Enum
-from os import remove
+
+PADDING_CHAR = '_'
+PREPARED_TRAIN_PATH = Path('./prepared.train')
 
 class ChunkRemainderPolicy(Enum):
     KEEP = 0
     DROP = 1
     PAD = 2
-
-PADDING_CHAR = '_'
-PREPARED_TRAIN_PATH = Path('./prepared.train')
 
 @dataclass
 class Config:
@@ -96,7 +95,7 @@ def parseFileToList(path: Path) -> List[str]:
     
 def prepareTrainInChunks(conf: Config, outputFile: Path) -> Path:
     '''
-    expects conf.inputPath the path of the train file.
+    expects conf.inputPath to be the path of the train file.
     conf.n is the chunk size
     conf.chunkRemainderPolicy decides what to do with chunks of size < conf.n
     '''
@@ -106,7 +105,14 @@ def prepareTrainInChunks(conf: Config, outputFile: Path) -> Path:
 
     return writeToFile(chunks, outputFile)
     
-def runFileOnProcess(process: Popen[str], strings: List[str], language: str, conf: Config, modifier: LineModifier) -> Dict[str, Tuple[str, float]]:
+def runInputsOnProcess(process: Popen[str], strings: List[str], label: Any, conf: Config, modifier: LineModifier) -> Dict[str, Tuple[str, float]]:
+    '''
+    runs the configured settings and input strings through the NSA, while applying the modifier to the strings.
+    return dict of shape:
+    {
+        string: (label, score)
+    }
+    '''
     results = {}
 
     def runLine(line: str) -> float:
@@ -123,11 +129,21 @@ def runFileOnProcess(process: Popen[str], strings: List[str], language: str, con
         return 0.0
 
     for string in strings:
-        results[string] = (language, runLine(string))
+        results[string] = (label, runLine(string))
 
     return results
 
 def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, Any]], lineModifier: LineModifier, trainPrepareCRMP: ChunkRemainderPolicy):
+    '''
+    opens the input files and runs them through the process configured in the conf while applying the linemodifier.
+    It first prepares the train file into chunks while applying the trainPrepareCRMP to the remaining chunks.
+    returns a dict of shape:
+    {
+        (n, r): {
+            string: (label, score)
+        }
+    }
+    '''
     result = {}
     inputs = [(parseFileToList(p), l) for (p, l) in inputPathsWithLabel]
 
@@ -140,18 +156,15 @@ def run(conf: Config, inputPathsWithLabel: List[Tuple[Path, Any]], lineModifier:
         tempConf.setN(n)
         tempConf.inputPath = prepareTrainInChunks(tempConf, PREPARED_TRAIN_PATH)
         for r in conf.iterR():
-            print('running', n, r, sep=' ')
+            print(f'running n={n} r={r}')
             tempConf.setR(r)
             p = openProcess(tempConf)
             temp  = {}
             for (input, language) in inputs:
-                temp |=  runFileOnProcess(p, input, language, conf, lineModifier)
+                temp |=  runInputsOnProcess(p, input, language, conf, lineModifier)
         
             p.kill()
             result[(n, r)] = sort(temp)
-
-            # PREPARED_TRAIN_PATH.unlink(missing_ok=True)
-        # remove(PREPARED_TRAIN_PATH)
 
     return result
 

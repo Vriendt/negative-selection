@@ -27,6 +27,12 @@ def seperateByLabel(tuples: List[Tuple[str, str]]) -> Dict[str, List[str]]:
     return {labelA: stringsA, labelB: stringsB}
 
 def prepareAllFiles():
+    '''
+    splits the test files into seperate files by the labels.
+    the split files are stored at:
+    ./syscalls/[dataset]/prepared/[dataset].[batch].[label].test
+    '''
+
     def doBatch(name: str, n: int):
         d = seperateByLabel(
             getInputWithLabel(Path(f'./syscalls/{name}/{name}.{str(n)}.test'),
@@ -38,8 +44,6 @@ def prepareAllFiles():
 
     for i in range(1, 4):
         doBatch('snd-unm', i)
-
-    for i in range(1, 4):
         doBatch('snd-cert', i)
 
 #prepareAllFiles()

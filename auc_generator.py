@@ -1,27 +1,26 @@
 from run_experiment import run, ChunkModifier, ChunkRemainderPolicy, Config
-import numpy as np
 from sklearn import metrics
 from imblearn import metrics as imbmetrics
 import matplotlib.pyplot as plt
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, List
 from pathlib import Path
 
 CORRECT_LABEL = 0
 INCORRECT_LABEL = 1
 
-def get_arrays(dict: Dict[str, Tuple[Any, float]], threshold: float):
-        y_true = []
-        y_pred = []
-        for (label, value) in dict.values():
-            if value <= threshold:
-                y_pred.append(CORRECT_LABEL)
-            else:
-                y_pred.append(INCORRECT_LABEL)
-            y_true.append(label)
+def get_arrays(dict: Dict[str, Tuple[Any, float]], threshold: float) -> Tuple[List[Any], List[Any]]:
+    y_true = []
+    y_pred = []
+    for (label, value) in dict.values():
+        if value <= threshold:
+            y_pred.append(CORRECT_LABEL)
+        else:
+            y_pred.append(INCORRECT_LABEL)
+        y_true.append(label)
 
-        return (y_true, y_pred)
+    return (y_true, y_pred)
 
-def get_arrays_for_auc_roc(dict: Dict[str, Tuple[Any, float]]):
+def get_arrays_for_auc_roc(dict: Dict[str, Tuple[Any, float]]) -> Tuple[List[Any], List[Any]]:
     y_true = []
     y_pred = []
     for (label, value) in dict.values():
@@ -30,7 +29,7 @@ def get_arrays_for_auc_roc(dict: Dict[str, Tuple[Any, float]]):
 
     return (y_true, y_pred)
 
-def calc(dict, n, r):
+def calcAndPlot(dict: Dict[str, Tuple[Any, float]], n: int, r: int) -> None:
     sensitivity = [1.0]
     specificity = [1.0]
 
@@ -51,24 +50,24 @@ def calc(dict, n, r):
     score = metrics.roc_auc_score(*get_arrays_for_auc_roc(dict))
     print(n, r, score)
 
-    # plt.title(f"Line Graph AUC={score}, n={n}, r={r}")
-    # plt.xlabel("1-specificity")
-    # plt.ylabel("sensitivity")
+    plt.title(f"Line Graph AUC={score}, n={n}, r={r}")
+    plt.xlabel("1-specificity")
+    plt.ylabel("sensitivity")
 
     sensitivity.append(0.0)
     specificity.append(0.0)
-    # plt.plot(specificity, sensitivity, color="red")
-    # plt.show()
-
-# result = runAssignment1()
+    plt.plot(specificity, sensitivity, color="red")
+    plt.show()
 
 
-def testRun():
+def runExperiment():
     conf = Config((9,12), (1,9), Path('./syscalls/snd-unm/snd-unm.train'), ChunkRemainderPolicy.PAD)
     files = [(Path('./syscalls/snd-unm/prepared/snd-unm.1.0.test'), 0), (Path('./syscalls/snd-unm/prepared/snd-unm.1.1.test'), 1)]
     return run(conf, files, ChunkModifier(), ChunkRemainderPolicy.PAD)
 
-r = testRun()
+#note that the without changing the values in the function called below, it will only run for:
+#n = 9 through n = 12, r = 1 through r = 9 with padding. On the unm dataset on batch 1
+r = runExperiment()
 
 for (n, r), v in r.items():
-    calc(v, n, r)
+    calcAndPlot(v, n, r)
